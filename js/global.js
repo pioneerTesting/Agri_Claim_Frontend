@@ -1,0 +1,2 @@
+window.globalNewGeneratedToken = "";
+window.globalAuthUsername = "";

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signup Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen">
+    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-lg">
+        <h2 class="text-2xl font-bold text-center text-gray-700 mb-6">Create an Account</h2>
+        <form id="signupForm" class="space-y-4">
+            <input type="text" id="name" placeholder="Full Name" class="input" >
+            <div class="relative">
+                <label for="dob" class="block text-gray-700 font-medium">Date of Birth</label>
+                <input type="date" id="dob" class="input" >
+            </div>
+            <select id="gender" class="input" >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </select>
+            <input type="email" id="email" placeholder="Email Address" class="input" >
+            <input type="text" id="address" placeholder="Residential Address" class="input" >
+            <input type="tel" id="phone" placeholder="Phone Number" class="input" pattern="[0-9]{10}">
+            <input type="text" id="aadhar" placeholder="Aadhar Card Number" class="input" pattern="[0-9]{12}">
+            <input type="text" id="bankAccount" placeholder="Bank Account Number" class="input" pattern="[0-9]{9,18}">
+            <input type="text" id="bankName" placeholder="Bank Name" class="input" >
+            <input type="text" id="ifsc" placeholder="IFSC Code" class="input" pattern="[A-Z]{4}0[A-Z0-9]{6}">
+            <input type="password" id="password" placeholder="Password" class="input" >
+            <input type="password" id="confirmPassword" placeholder="Confirm Password" class="input" >
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">Sign Up</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("signupForm").addEventListener("submit", async function(event) {
+            debugger;
+            event.preventDefault();
+            const password = document.getElementById("password").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
+            if (password !== confirmPassword) {
+                alert("Passwords do not match!");
+                return;
+            }
+            
+            try {
+                 // Step 1: Authenticate User
+                const authResponse = await fetch("http://localhost:9000/authenticateUser", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ userName: "uds" })
+                });
+
+                if (!authResponse.ok) throw new Error("Authentication failed");
+
+                const authData = await authResponse.json();
+                const newGeneratedToken = authData.newGeneratedToken;
+                const username = authData.username;
+
+                console.log("Authentication successful:", authData);
+
+
+            // Step 2: Call Signup API
+            debugger
+            var name = $("#name").val();
+            var dob = $("#dob").val();
+            var gender = $("#gender").val();
+            var email = $("#email").val();
+            var address = $("#address").val();
+            var phone = $("#phone").val();
+            var aadhar = $("#aadhar").val();
+            var bankAccount = $("#bankAccount").val();
+            var bankName = $("#bankName").val();
+            var ifsc = $("#ifsc").val();
+
+            $.ajax({
+                url: 'http://localhost:9010/workflow/user/signup',
+                type: 'POST',
+                headers: {
+                    'Authorization': newGeneratedToken,
+                    'Content-Type': 'application/json'
+                },
+                xhrFields: {
+                    withCredentials: true
+                },
+                data: JSON.stringify({
+                    "name": name,
+                    "dob": dob,
+                    "gender": gender,
+                    "email": email,
+                    "address": address,
+                    "phoneNo": phone,
+                    "aadharCardNo": aadhar,
+                    "bankAccountNo": bankAccount,
+                    "bankName": bankName,
+                    "ifscCode": ifsc,
+                    "password": confirmPassword,
+                    "authenticateUsername": username
+                }),
+                success: function(response) {
+                    console.log('Signup successful:', response);
+                    if(response.status == "Failure"){
+                        alert(response.message);
+                    }else if(response.status == "Success"){
+                        //redirect to login page
+                    }
+                    
+                },
+                error: function(xhr, status, error) {
+                    console.error('Signup failed:', xhr.responseText);
+                    alert("Signup Failed! Check Console for details.");
+                }
+            });
+
+            } catch (error) {
+                console.error("Error during API call:", error);
+                alert("Failed to authenticate user.");
+            }
+        });
+    </script>
+
+    <style>
+        .input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .input:focus {
+            border-color: #2563eb;
+        }
+    </style>
+</body>
+</html>

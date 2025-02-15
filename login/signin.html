@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen" id="body">
+    <div class="absolute top-4 right-4">
+        <button id="toggleMode" class="bg-gray-800 text-white p-2 rounded-full">
+            <span id="modeIcon">🌙</span>
+        </button>
+    </div>
+    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center text-gray-700 mb-6">Login</h2>
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label for="username" class="block text-gray-700 font-medium">Username</label>
+                <input type="text" id="username" class="input" required>
+            </div>
+            <div>
+                <label for="password" class="block text-gray-700 font-medium">Password</label>
+                <input type="password" id="password" class="input" required>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">Login</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("toggleMode").addEventListener("click", function() {
+            const body = document.getElementById("body");
+            const modeIcon = document.getElementById("modeIcon");
+            if (body.classList.contains("bg-gray-100")) {
+                body.classList.remove("bg-gray-100");
+                body.classList.add("bg-gray-900", "text-white");
+                modeIcon.textContent = "☀️";
+                this.classList.remove("bg-gray-800");
+                this.classList.add("bg-gray-200", "text-black");
+            } else {
+                body.classList.remove("bg-gray-900", "text-white");
+                body.classList.add("bg-gray-100");
+                modeIcon.textContent = "🌙";
+                this.classList.remove("bg-gray-200", "text-black");
+                this.classList.add("bg-gray-800", "text-white");
+            }
+        });
+
+        document.getElementById("loginForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            try {
+                debugger
+                const response = await fetch("http://localhost:9000/authenticateUser", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ userName: username })
+                });
+                
+                if (!response.ok) throw new Error("Login failed");
+                
+                const authData = await response.json();
+                console.log("Login successful:", authData);
+
+                const newGeneratedToken = authData.newGeneratedToken;
+                const authUsername = authData.username;
+
+
+                debugger
+                $.ajax({
+                url: 'http://localhost:9010/workflow/user/signin',
+                type: 'POST',
+                headers: {
+                    'Authorization': newGeneratedToken,
+                    'Content-Type': 'application/json'
+                },
+                xhrFields: {
+                    withCredentials: true 
+                },
+                data: JSON.stringify({
+                    "email": username,
+                    "password": password,
+                    "authenticateUsername": username
+                }),
+                success: function(response) {
+                    console.log('Signup successful:', response);
+                    if(response.status == "Failure"){
+                        alert(response.message);
+                    }else if(response.status == "Success"){
+                        sessionStorage.setItem("globalNewGeneratedToken", newGeneratedToken);
+                        sessionStorage.setItem("globalAuthUsername", username);
+                        window.location.replace("http://127.0.0.1:5500/dashboard/index.html");
+                        //redirect to login page
+                    }
+                    
+                },
+                error: function(xhr, status, error) {
+                    console.error('Signup failed:', xhr.responseText);
+                    alert("Signup Failed! Check Console for details.");
+                }
+            });
+
+                alert("Login successful!");
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Invalid credentials. Please try again.");
+            }
+        });
+    </script>
+
+    <style>
+        .input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .input:focus {
+            border-color: #2563eb;
+        }
+    </style>
+</body>
+</html>

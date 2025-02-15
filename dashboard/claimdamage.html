@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Claim Damage</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  </head>
+  <body class="bg-black text-white">
+    <div class="max-w-md mx-auto p-4">
+      <!-- Header -->
+      <div class="flex justify-between items-center py-2">
+        <button class="text-xl">☰</button>
+        <h1 class="text-lg font-semibold">AGRI CLAIM</h1>
+        <div class="flex space-x-3">
+          <span>⚙️</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex justify-center border-b border-gray-700">
+        <button class="px-4 py-2 text-pink-400 border-b-2 border-pink-400">
+          Claim Damage
+        </button>
+      </div>
+
+      <br />
+
+      <!-- Upload Photos -->
+      <div class="space-y-4">
+        <input
+          type="file"
+          id="uploadPhoto"
+          accept="image/*"
+          multiple
+          class="hidden"
+          onchange="handlePhotoSelect(event)"
+        />
+        <label
+          for="uploadPhoto"
+          class="w-full block bg-gradient-to-r from-pink-500 to-orange-400 text-white py-3 rounded-lg text-center cursor-pointer"
+        >
+          Upload Photos
+        </label>
+        <div id="imagePreview" class="grid grid-cols-5 gap-2 mt-2 mb-4"></div>
+      </div>
+
+      <!-- Upload Documents -->
+      <div class="space-y-4 mt-4">
+        <input
+          type="file"
+          id="uploadDocument"
+          multiple
+          class="hidden"
+          onchange="handleDocumentSelect(event)"
+        />
+        <label
+          for="uploadDocument"
+          class="w-full block bg-gradient-to-r from-pink-500 to-orange-400 text-white py-3 rounded-lg text-center cursor-pointer"
+        >
+          Upload Document
+        </label>
+        <div id="documentPreview" class="mt-2"></div>
+      </div>
+
+      <!-- Crop Type Dropdown -->
+      <div class="mt-4">
+        <select class="w-full bg-gray-800 text-white py-3 px-4 rounded-lg">
+          <option>Type of Crops</option>
+          <option>Wheat</option>
+          <option>Rice</option>
+          <option>Corn</option>
+        </select>
+      </div>
+
+      <!-- Open Source Map Section using Leaflet -->
+      <div
+        id="map"
+        class="bg-gray-800 text-white text-center mt-4 rounded-lg"
+        style="height: 250px"
+      >
+        <p class="text-lg">Fetching location...</p>
+      </div>
+      <!-- Coordinates Display -->
+      <div id="coordinates" class="mt-2 text-center"></div>
+      <!-- Relocate Button -->
+      <div class="mt-2 text-center">
+        <button
+          onclick="reLocate()"
+          class="bg-gradient-to-r from-blue-500 to-green-500 text-white py-2 px-4 rounded-lg"
+        >
+          Relocate Current Location
+        </button>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="mt-4">
+        <button
+          onclick="submitData()"
+          class="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white py-3 rounded-lg"
+        >
+          Submit
+        </button>
+      </div>
+    </div>
+
+    <script>
+      let map, marker; // Global variables for map and marker
+
+      // Handle Photo Selection & Preview
+      function handlePhotoSelect(event) {
+        const files = event.target.files;
+        if (files.length > 10) {
+          alert("You can upload a maximum of 10 images.");
+          event.target.value = "";
+          return;
+        }
+        const previewContainer = document.getElementById("imagePreview");
+        previewContainer.innerHTML = "";
+        Array.from(files).forEach((file, index) => {
+          if (index < 10) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              const img = document.createElement("img");
+              img.src = e.target.result;
+              img.classList.add("w-16", "h-16", "rounded", "object-cover");
+              previewContainer.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+      }
+
+      // Handle Document Selection & Preview
+      function handleDocumentSelect(event) {
+        const files = event.target.files;
+        if (files.length > 10) {
+          alert("You can upload a maximum of 10 documents.");
+          event.target.value = "";
+          return;
+        }
+        const previewContainer = document.getElementById("documentPreview");
+        previewContainer.innerHTML = "";
+        Array.from(files).forEach((file) => {
+          const fileElement = document.createElement("p");
+          fileElement.textContent = file.name;
+          fileElement.classList.add("text-sm", "mt-1");
+          previewContainer.appendChild(fileElement);
+        });
+      }
+
+      // Helper: Convert file to Base64 data using a Promise
+      function convertFileToBase64(file) {
+        return new Promise((resolve, reject) => {
+          let reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => {
+            resolve({
+              fileName: file.name,
+              fileType: file.type,
+              base64Data: reader.result.split(",")[1],
+            });
+          };
+          reader.onerror = (error) => reject(error);
+        });
+      }
+
+      // Submit Data: Process both images and documents
+      function submitData() {
+        const imageFiles = document.getElementById("uploadPhoto").files;
+        const documentFiles = document.getElementById("uploadDocument").files;
+        const token = sessionStorage.getItem("globalNewGeneratedToken");
+        const username = sessionStorage.getItem("globalAuthUsername");
+
+        const imagePromises = Array.from(imageFiles).map((file) =>
+          convertFileToBase64(file)
+        );
+        const documentPromises = Array.from(documentFiles).map((file) =>
+          convertFileToBase64(file)
+        );
+
+        Promise.all(imagePromises)
+          .then((imageList) => {
+            return Promise.all(documentPromises).then((documentList) => {
+              return { imageList, documentList };
+            });
+          })
+          .then(({ imageList, documentList }) => {
+            const payload = {
+              authenticateUsername: username,
+              images: imageList,
+              documents: documentList,
+            };
+            console.log("Payload to send:", payload);
+            sendData(payload, token);
+          })
+          .catch((error) => {
+            console.error("Error processing files:", error);
+          });
+      }
+
+      // Send Data to API
+      function sendData(payload, token) {
+        $.ajax({
+          url: "http://localhost:9010/workflow/upload/image",
+          type: "POST",
+          contentType: "application/json",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          data: JSON.stringify(payload),
+          success: function (response) {
+            alert("Success: " + response);
+            console.log(response);
+          },
+          error: function (error) {
+            alert("Error uploading files.");
+            console.error(error);
+          },
+        });
+      }
+
+      // Update coordinates display
+      function updateCoordinates(lat, lng) {
+        document.getElementById("coordinates").textContent =
+          "Latitude: " + lat.toFixed(5) + ", Longitude: " + lng.toFixed(5);
+      }
+
+      // Initialize the map using Leaflet and display current location with a draggable marker
+      function initMap(latitude, longitude) {
+        // Only create a new map if one doesn't already exist.
+        if (!map) {
+          map = L.map("map").setView([latitude, longitude], 13);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+          }).addTo(map);
+        } else {
+          // Re-center the map if it already exists.
+          map.setView([latitude, longitude], 13);
+        }
+
+        // Create or move the draggable marker.
+        if (!marker) {
+          marker = L.marker([latitude, longitude], { draggable: true }).addTo(
+            map
+          );
+          marker.bindPopup("Drag me to adjust your location").openPopup();
+          // Update coordinates when the marker is dragged.
+          marker.on("dragend", function (e) {
+            const newPos = e.target.getLatLng();
+            updateCoordinates(newPos.lat, newPos.lng);
+          });
+        } else {
+          marker.setLatLng([latitude, longitude]);
+        }
+        updateCoordinates(latitude, longitude);
+      }
+
+      // Get the user's current location using the Geolocation API
+      function getUserLocation(callback) {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            function (position) {
+              const latitude = position.coords.latitude;
+              const longitude = position.coords.longitude;
+              if (callback && typeof callback === "function") {
+                callback(latitude, longitude);
+              } else {
+                initMap(latitude, longitude);
+              }
+            },
+            function (error) {
+              let errorMsg = "Unable to retrieve location.";
+              if (error.code === error.PERMISSION_DENIED) {
+                errorMsg +=
+                  " Permission denied. Please enable location services in your browser settings.";
+              } else if (error.code === error.POSITION_UNAVAILABLE) {
+                errorMsg += " Location information is unavailable.";
+              } else if (error.code === error.TIMEOUT) {
+                errorMsg += " The request to get your location timed out.";
+              }
+              // Suggest checking HTTPS if running on mobile
+              if (window.location.protocol !== "https:") {
+                errorMsg += " For mobile devices, please use HTTPS.";
+              }
+              document.getElementById("map").innerHTML =
+                "<p class='text-lg text-red-500'>" + errorMsg + "</p>";
+              console.error("Error getting location:", error);
+            }
+          );
+        } else {
+          document.getElementById("map").innerHTML =
+            "<p class='text-lg text-red-500'>Geolocation is not supported by your browser.</p>";
+        }
+      }
+
+      // Function to re-locate and update the marker to the user's current location
+      function reLocate() {
+        getUserLocation(function (latitude, longitude) {
+          initMap(latitude, longitude);
+        });
+      }
+
+      // Initialize map on page load with user's current location
+      getUserLocation();
+    </script>
+  </body>
+</html>

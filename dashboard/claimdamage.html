@@ -12,6 +12,21 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Leaflet.draw CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
+      integrity="sha512-g9d27B+TJpAV6nNRYuxCAbfxouQ3rglxN/NllS3i5sIX+GqXK5r35I/cQK/UXvCHeY8Zp0y9Y+T9Iqn3jTnfnA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <!-- Leaflet.draw JS -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"
+      integrity="sha512-8h9mI8IqJlSnva4rj0SVrqg3bYp9ZQdAX5Geciv1E4Z9HWFhBrbFTS9qUj4E3aZm7ob1YPusREzHyGClGi3Fgw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
   </head>
   <body class="bg-black text-white">
     <div class="max-w-md mx-auto p-4">
@@ -80,7 +95,7 @@
         </select>
       </div>
 
-      <!-- Open Source Map Section using Leaflet -->
+      <!-- Map Section using Leaflet with drawing feature -->
       <div
         id="map"
         class="bg-gray-800 text-white text-center mt-4 rounded-lg"
@@ -106,13 +121,13 @@
           onclick="submitData()"
           class="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white py-3 rounded-lg"
         >
-          Submit
+          Submit V2
         </button>
       </div>
     </div>
 
     <script>
-      let map, marker; // Global variables for map and marker
+      let map, marker, drawnItems; // Global variables for map, marker, and drawn items
 
       // Handle Photo Selection & Preview
       function handlePhotoSelect(event) {
@@ -234,17 +249,50 @@
           "Latitude: " + lat.toFixed(5) + ", Longitude: " + lng.toFixed(5);
       }
 
-      // Initialize the map using Leaflet and display current location with a draggable marker
+      // Initialize the map using Leaflet, add draggable marker and drawing tools
       function initMap(latitude, longitude) {
-        // Only create a new map if one doesn't already exist.
+        // If map instance doesn't exist, create it
         if (!map) {
           map = L.map("map").setView([latitude, longitude], 13);
           L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             attribution:
               '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
           }).addTo(map);
+
+          // Initialize feature group to store drawn items
+          drawnItems = new L.FeatureGroup();
+          map.addLayer(drawnItems);
+
+          // Initialize Leaflet.draw controls
+          var drawControl = new L.Control.Draw({
+            edit: {
+              featureGroup: drawnItems,
+              remove: true,
+            },
+            draw: {
+              polygon: true,
+              rectangle: true,
+              polyline: false,
+              circle: false,
+              marker: false,
+              circlemarker: false,
+            },
+          });
+          map.addControl(drawControl);
+
+          // Listen for created layers (drawn shapes)
+          map.on("draw:created", function (e) {
+            var layer = e.layer;
+            drawnItems.addLayer(layer);
+
+            // Log coordinates of the drawn shape
+            if (e.layerType === "polygon" || e.layerType === "rectangle") {
+              const latlngs = layer.getLatLngs();
+              console.log("Drawn area coordinates:", latlngs);
+            }
+          });
         } else {
-          // Re-center the map if it already exists.
+          // Re-center the map if it already exists
           map.setView([latitude, longitude], 13);
         }
 
@@ -279,21 +327,8 @@
               }
             },
             function (error) {
-              let errorMsg = "Unable to retrieve location.";
-              if (error.code === error.PERMISSION_DENIED) {
-                errorMsg +=
-                  " Permission denied. Please enable location services in your browser settings.";
-              } else if (error.code === error.POSITION_UNAVAILABLE) {
-                errorMsg += " Location information is unavailable.";
-              } else if (error.code === error.TIMEOUT) {
-                errorMsg += " The request to get your location timed out.";
-              }
-              // Suggest checking HTTPS if running on mobile
-              if (window.location.protocol !== "https:") {
-                errorMsg += " For mobile devices, please use HTTPS.";
-              }
               document.getElementById("map").innerHTML =
-                "<p class='text-lg text-red-500'>" + errorMsg + "</p>";
+                "<p class='text-lg text-red-500'>Unable to retrieve location.</p>";
               console.error("Error getting location:", error);
             }
           );

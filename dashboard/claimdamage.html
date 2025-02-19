@@ -4,29 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Claim Damage</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <!-- Leaflet.draw CSS -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
-      integrity="sha512-g9d27B+TJpAV6nNRYuxCAbfxouQ3rglxN/NllS3i5sIX+GqXK5r35I/cQK/UXvCHeY8Zp0y9Y+T9Iqn3jTnfnA=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
     />
+
+    <!-- Then any custom CSS or Tailwind (if needed) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <!-- Leaflet.draw JS -->
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"
-      integrity="sha512-8h9mI8IqJlSnva4rj0SVrqg3bYp9ZQdAX5Geciv1E4Z9HWFhBrbFTS9qUj4E3aZm7ob1YPusREzHyGClGi3Fgw=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <!-- Turf.js for spatial calculations -->
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
   </head>
   <body class="bg-black text-white">
     <div class="max-w-md mx-auto p-4">
@@ -121,7 +116,7 @@
           onclick="submitData()"
           class="w-full bg-gradient-to-r from-orange-400 to-pink-500 text-white py-3 rounded-lg"
         >
-          Submit V3
+          Submit
         </button>
       </div>
     </div>
@@ -249,7 +244,31 @@
           "Latitude: " + lat.toFixed(5) + ", Longitude: " + lng.toFixed(5);
       }
 
-      // Initialize the map using Leaflet, add draggable marker and drawing tools
+      // Compute area of a given layer (in square feet)
+      function computeArea(layer) {
+        const geojson = layer.toGeoJSON();
+        // Turf.js returns area in square meters
+        const areaSqMeters = turf.area(geojson);
+        const areaSqFeet = areaSqMeters * 10.7639;
+        return areaSqFeet;
+      }
+
+      // Calculate the total area from all drawn layers
+      function calculateTotalArea() {
+        let totalArea = 0;
+        drawnItems.eachLayer(function (layer) {
+          totalArea += computeArea(layer);
+        });
+        return totalArea;
+      }
+
+      // Alert the total area in square feet
+      function alertTotalArea() {
+        const totalArea = calculateTotalArea();
+        alert("Total Area: " + totalArea.toFixed(2) + " sq feet");
+      }
+
+      // Initialize the map using Leaflet, add draggable marker, drawing tools, and area calculation
       function initMap(latitude, longitude) {
         // If map instance doesn't exist, create it
         if (!map) {
@@ -285,11 +304,22 @@
             var layer = e.layer;
             drawnItems.addLayer(layer);
 
-            // Log coordinates of the drawn shape
+            // Optional: Log the coordinates of the drawn shape
             if (e.layerType === "polygon" || e.layerType === "rectangle") {
               const latlngs = layer.getLatLngs();
               console.log("Drawn area coordinates:", latlngs);
             }
+            alertTotalArea();
+          });
+
+          // Listen for edits on drawn layers
+          map.on("draw:edited", function (e) {
+            alertTotalArea();
+          });
+
+          // Listen for deletion of drawn layers
+          map.on("draw:deleted", function () {
+            alertTotalArea();
           });
         } else {
           // Re-center the map if it already exists
